@@ -1,0 +1,5 @@
+node_modules/
+.vite/
+dist/
+ezgif-4b22ee7495e594f9-jpg/
+*.mp3
