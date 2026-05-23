@@ -1,198 +1,159 @@
-import { Howl } from 'howler'
-
-const FADE_IN_DURATION = 5000
+const FADE_DURATION = 3000
 const BASE_VOLUME = 0.15
 
 let instance = null
 
 class AmbientAudioManager {
   constructor() {
-    this.howl = null
+    this.audio = null
+    this.audioCtx = null
+    this.gainNode = null
+    this.sourceNode = null
     this.isPlaying = false
-    this.volume = BASE_VOLUME
+    this.targetVolume = BASE_VOLUME
     this.activated = false
-    this.fadedIn = false
-    this.fadeTimer = null
-    this.retryTimer = null
-    this._activationHandler = null
-    this._layers = []
-    this._clusterAmbience = new Map()
+    this.userGestureHandler = null
   }
 
   init() {
-    if (this.howl) return this
+    if (this.audio) return this
 
-    this.howl = new Howl({
-      src: ['/audio/edith-theme.mp3'],
-      loop: true,
-      autoplay: false,
-      volume: 0,
-      html5: true,
-      preload: true,
-      onloaderror: (_id, err) => {
-        if (err && !this.retryTimer) {
-          this.retryTimer = setTimeout(() => {
-            this.retryTimer = null
-            this._retryLoad()
-          }, 2000)
+    this.audio = new Audio('/audio/edith-theme.mp3')
+    this.audio.loop = true
+    this.audio.volume = 0
+    this.audio.preload = 'auto'
+
+    this.audio.addEventListener('canplaythrough', () => {
+      this._setupUserActivation()
+    }, { once: true })
+
+    this.audio.addEventListener('error', () => {
+      setTimeout(() => {
+        if (this.audio) {
+          this.audio.load()
         }
-      },
-      onplayerror: () => {
-        if (!this.activated) return
-        setTimeout(() => this._tryPlay(), 500)
-      },
-      onplay: () => {
-        this.isPlaying = true
-        if (!this.fadedIn) {
-          this.fadedIn = true
-          this.howl.fade(0, BASE_VOLUME, FADE_IN_DURATION)
-        }
-      },
-      onstop: () => {
-        this.isPlaying = false
-      },
+      }, 3000)
     })
 
-    this._setupActivation()
+    this.audio.load()
+
     return this
   }
 
-  _setupActivation() {
-    if (this.activated || this._activationHandler) return
+  _setupUserActivation() {
+    if (this.activated) return
 
-    const activate = () => {
-      if (this.activated) return
+    const tryPlay = () => {
       this.activated = true
-      this._removeActivationListeners()
-      this._tryPlay()
+      this._removeUserActivationListeners()
+      this._playWithFade()
     }
 
-    this._activationHandler = activate
-    document.addEventListener('click', activate, { once: true })
-    document.addEventListener('touchstart', activate, { once: true })
-    document.addEventListener('keydown', activate, { once: true })
+    this.userGestureHandler = tryPlay
+    document.addEventListener('click', tryPlay, { once: true })
+    document.addEventListener('touchstart', tryPlay, { once: true })
+    document.addEventListener('keydown', tryPlay, { once: true })
+
+    this._tryImmediatePlay()
   }
 
-  _removeActivationListeners() {
-    if (this._activationHandler) {
-      document.removeEventListener('click', this._activationHandler)
-      document.removeEventListener('touchstart', this._activationHandler)
-      document.removeEventListener('keydown', this._activationHandler)
-      this._activationHandler = null
-    }
-  }
-
-  _tryPlay() {
-    if (!this.howl) return
-    try {
-      this.howl.play()
-    } catch {
-      setTimeout(() => this._tryPlay(), 500)
+  _tryImmediatePlay() {
+    if (!this.audio) return
+    const playPromise = this.audio.play()
+    if (playPromise) {
+      playPromise.then(() => {
+        this.activated = true
+        this._removeUserActivationListeners()
+        this._playWithFade()
+      }).catch(() => {
+      })
     }
   }
 
-  _retryLoad() {
-    if (this.howl) {
-      this.howl.unload()
-      this.howl = null
+  _removeUserActivationListeners() {
+    if (this.userGestureHandler) {
+      document.removeEventListener('click', this.userGestureHandler)
+      document.removeEventListener('touchstart', this.userGestureHandler)
+      document.removeEventListener('keydown', this.userGestureHandler)
+      this.userGestureHandler = null
     }
-    this.fadedIn = false
-    this.init()
   }
 
-  fadeIn(duration = FADE_IN_DURATION, targetVolume = BASE_VOLUME) {
-    if (!this.howl) {
-      this.volume = targetVolume
-      this.init()
-      return
+  _playWithFade() {
+    if (!this.audio || this.isPlaying) return
+
+    this.isPlaying = true
+    this.audio.volume = 0
+
+    const playPromise = this.audio.play()
+    if (playPromise) {
+      playPromise.catch(() => {
+        this.isPlaying = false
+        setTimeout(() => this._playWithFade(), 1000)
+      })
     }
-    this.volume = targetVolume
-    this.fadedIn = false
-    this._tryPlay()
+
+    this._fadeIn()
+  }
+
+  _fadeIn() {
+    if (!this.audio) return
+
+    const targetVol = this.targetVolume
+    const startTime = performance.now()
+
+    const step = (now) => {
+      if (!this.audio) return
+      const elapsed = now - startTime
+      const progress = Math.min(elapsed / FADE_DURATION, 1)
+      this.audio.volume = targetVol * progress
+      if (progress < 1) {
+        requestAnimationFrame(step)
+      }
+    }
+
+    requestAnimationFrame(step)
   }
 
   fadeOut(duration = 2000) {
-    if (!this.howl) return
-    if (this.fadeTimer) clearTimeout(this.fadeTimer)
-    this.howl.fade(this.volume, 0, duration)
-    this.fadeTimer = setTimeout(() => {
-      if (this.howl) this.howl.pause()
-      this.isPlaying = false
-    }, duration)
+    if (!this.audio || !this.isPlaying) return
+
+    const startVol = this.audio.volume
+    const startTime = performance.now()
+
+    const step = (now) => {
+      if (!this.audio) return
+      const elapsed = now - startTime
+      const progress = Math.min(elapsed / duration, 1)
+      this.audio.volume = startVol * (1 - progress)
+      if (progress < 1) {
+        requestAnimationFrame(step)
+      } else {
+        this.audio.pause()
+        this.isPlaying = false
+      }
+    }
+
+    requestAnimationFrame(step)
   }
 
   setVolume(vol) {
-    if (!this.howl) return
-    this.volume = Math.max(0, Math.min(1, vol))
-    this.howl.volume(this.volume)
-  }
-
-  isLoaded() {
-    return this.howl && this.howl.state() === 'loaded'
+    this.targetVolume = Math.max(0, Math.min(1, vol))
+    if (this.audio) {
+      this.audio.volume = this.targetVolume
+    }
   }
 
   destroy() {
-    this._removeActivationListeners()
-    if (this.retryTimer) clearTimeout(this.retryTimer)
-    if (this.fadeTimer) clearTimeout(this.fadeTimer)
-    if (this.howl) {
-      this.howl.stop()
-      this.howl.unload()
+    this._removeUserActivationListeners()
+    if (this.audio) {
+      this.audio.pause()
+      this.audio.src = ''
+      this.audio.load()
     }
-    this.howl = null
+    this.audio = null
     this.isPlaying = false
     this.activated = false
-    this.fadedIn = false
-    this._layers = []
-    this._clusterAmbience.clear()
-  }
-
-  addLayer(name, src, volume = 0.1) {
-    this._layers.push({ name, src, volume, howl: null })
-  }
-
-  playLayer(name) {
-    const layer = this._layers.find(l => l.name === name)
-    if (!layer) return
-    if (layer.howl) { layer.howl.play(); return }
-    layer.howl = new Howl({
-      src: [layer.src],
-      loop: true,
-      volume: 0,
-      html5: true,
-    })
-    layer.howl.once('load', () => {
-      layer.howl.fade(0, layer.volume, 2000)
-    })
-  }
-
-  stopLayer(name) {
-    const layer = this._layers.find(l => l.name === name)
-    if (!layer || !layer.howl) return
-    layer.howl.fade(layer.volume, 0, 2000)
-    setTimeout(() => { if (layer.howl) layer.howl.stop() }, 2000)
-  }
-
-  setClusterAmbience(clusterId, src, volume = 0.08) {
-    this._clusterAmbience.set(clusterId, { src, volume, howl: null })
-  }
-
-  enterCluster(clusterId) {
-    const ambience = this._clusterAmbience.get(clusterId)
-    if (!ambience) return
-    if (ambience.howl) { ambience.howl.fade(0, ambience.volume, 2000); return }
-    ambience.howl = new Howl({
-      src: [ambience.src], loop: true, volume: 0, html5: true,
-    })
-    ambience.howl.once('load', () => {
-      ambience.howl.fade(0, ambience.volume, 2000)
-    })
-  }
-
-  exitCluster(clusterId) {
-    const ambience = this._clusterAmbience.get(clusterId)
-    if (!ambience || !ambience.howl) return
-    ambience.howl.fade(ambience.volume, 0, 2000)
   }
 }
 
