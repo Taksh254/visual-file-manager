@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Canvas } from '@react-three/fiber'
 import { OrbitControls } from '@react-three/drei'
 import * as THREE from 'three'
@@ -11,11 +11,15 @@ import BottomNav from './components/BottomNav'
 import NeuralMinimap from './components/NeuralMinimap'
 import MinimapCameraSync from './components/MinimapCameraSync'
 import ConnectionStatus from './components/ConnectionStatus'
+import InitFlow from './components/InitFlow'
 import useUniverseState from './hooks/useUniverseState'
 import { STATE } from './systems/TransitionManager'
 import { getAmbientAudio } from './audio/AmbientAudioManager'
 
 export default function App() {
+  const [initPhase, setInitPhase] = useState(true)
+  const [ready, setReady] = useState(false)
+
   const {
     clusters,
     clusterNames,
@@ -38,12 +42,18 @@ export default function App() {
     handleCameraComplete,
     openFile,
     clearFileChanges,
+    setCustomClusters,
   } = useUniverseState()
 
-  useEffect(() => {
-    const audio = getAmbientAudio()
-    audio.init()
-  }, [])
+  const handleInitComplete = useCallback((clusterMap, clusterFiles) => {
+    setCustomClusters(clusterMap, clusterFiles)
+    setReady(true)
+    setTimeout(() => {
+      setInitPhase(false)
+      const audio = getAmbientAudio()
+      audio.init()
+    }, 400)
+  }, [setCustomClusters])
 
   useEffect(() => {
     if (fileChanges) {
@@ -56,6 +66,18 @@ export default function App() {
 
   return (
     <div style={{ width: '100vw', height: '100vh', background: '#000005', position: 'relative', overflow: 'hidden' }}>
+      {initPhase && (
+        <div style={{
+          position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+          zIndex: 1000,
+          opacity: ready ? 0 : 1,
+          transition: 'opacity 1.2s ease',
+          pointerEvents: ready ? 'none' : 'auto',
+        }}>
+          <InitFlow onComplete={handleInitComplete} />
+        </div>
+      )}
+
       <Canvas
         camera={{ position: [0, 2, 8], fov: 50, near: 0.05, far: 60 }}
         dpr={[1.5, 2]}

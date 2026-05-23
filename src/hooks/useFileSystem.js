@@ -211,6 +211,15 @@ export default function useFileSystem() {
     setFileChanges(null)
   }, [])
 
+  const setCustomClusters = useCallback((customClusters, customClusterFiles) => {
+    setClusters(customClusters)
+    setClusterFiles(customClusterFiles || {})
+    setIsDemo(false)
+    setLoading(false)
+    setError(null)
+    setConnected(true)
+  }, [])
+
   return {
     clusters,
     clusterFiles,
@@ -223,5 +232,6 @@ export default function useFileSystem() {
     fetchClusterFiles,
     openFile,
     clearFileChanges,
+    setCustomClusters,
   }
 }

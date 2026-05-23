@@ -22,6 +22,7 @@ export default function useUniverseState() {
     fetchClusterFiles,
     openFile,
     clearFileChanges,
+    setCustomClusters,
   } = useFileSystem()
 
   const [activeClusterId, setActiveClusterId] = useState(null)
@@ -134,6 +135,7 @@ export default function useUniverseState() {
     fetchClusterFiles,
     openFile,
     clearFileChanges,
+    setCustomClusters,
 
     activeClusterId,
     activeCluster,
