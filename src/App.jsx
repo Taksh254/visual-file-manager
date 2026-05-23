@@ -50,9 +50,11 @@ export default function App() {
     setReady(true)
     setTimeout(() => {
       setInitPhase(false)
+    }, 1400)
+    setTimeout(() => {
       const audio = getAmbientAudio()
       audio.init()
-    }, 400)
+    }, 1800)
   }, [setCustomClusters])
 
   useEffect(() => {
@@ -78,45 +80,51 @@ export default function App() {
         </div>
       )}
 
-      <Canvas
-        camera={{ position: [0, 2, 8], fov: 50, near: 0.05, far: 60 }}
-        dpr={[1.5, 2]}
-        gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false }}
-        onPointerMissed={!isInUniverse && !isTransitioning ? exitToUniverse : undefined}
-      >
-        <fog attach="fog" args={['#000000', 16, 50]} />
-        <color attach="background" args={['#000005']} />
+      <div style={{
+        position: 'fixed', top: 0, left: 0, width: '100vw', height: '100vh',
+        opacity: initPhase ? 0 : 1,
+        transition: 'opacity 1.5s ease',
+      }}>
+        <Canvas
+          camera={{ position: [0, 2, 8], fov: 50, near: 0.05, far: 60 }}
+          dpr={[1.5, 2]}
+          gl={{ antialias: true, alpha: false, powerPreference: 'high-performance', stencil: false }}
+          onPointerMissed={!isInUniverse && !isTransitioning ? exitToUniverse : undefined}
+        >
+          <fog attach="fog" args={['#000000', 16, 50]} />
+          <color attach="background" args={['#000005']} />
 
-        <SceneContent
-          clusters={clusters}
-          activeCluster={activeClusterId}
-          clusterParticles={clusterParticles}
-          fileChanges={fileChanges}
-          isTransitioning={isTransitioning}
-          onClusterSelect={enterCluster}
-          onReturn={exitToUniverse}
-          onFileSelect={handleFileSelect}
-        />
+          <SceneContent
+            clusters={clusters}
+            activeCluster={activeClusterId}
+            clusterParticles={clusterParticles}
+            fileChanges={fileChanges}
+            isTransitioning={isTransitioning}
+            onClusterSelect={enterCluster}
+            onReturn={exitToUniverse}
+            onFileSelect={handleFileSelect}
+          />
 
-        <OrbitControls
-          makeDefault enableDamping dampingFactor={0.05}
-          autoRotate={isInUniverse} autoRotateSpeed={0.04}
-          enablePan={!isInUniverse && !isTransitioning} enableZoom={!isTransitioning} rotateSpeed={0.3}
-          maxDistance={isInUniverse ? 18 : 3.5}
-          minDistance={isInUniverse ? 3.5 : 0.3}
-          enabled={!isTransitioning}
-        />
+          <OrbitControls
+            makeDefault enableDamping dampingFactor={0.05}
+            autoRotate={isInUniverse} autoRotateSpeed={0.04}
+            enablePan={!isInUniverse && !isTransitioning} enableZoom={!isTransitioning} rotateSpeed={0.3}
+            maxDistance={isInUniverse ? 18 : 3.5}
+            minDistance={isInUniverse ? 3.5 : 0.3}
+            enabled={!isTransitioning}
+          />
 
-        <CameraController
-          target={cameraConfig.target}
-          cameraEnd={cameraConfig.endPos}
-          isActive={cameraConfig.isActive}
-          onComplete={handleCameraComplete}
-        />
+          <CameraController
+            target={cameraConfig.target}
+            cameraEnd={cameraConfig.endPos}
+            isActive={cameraConfig.isActive}
+            onComplete={handleCameraComplete}
+          />
 
-        <PostProcessing />
-        <MinimapCameraSync />
-      </Canvas>
+          <PostProcessing />
+          <MinimapCameraSync />
+        </Canvas>
+      </div>
 
       <ConnectionStatus connected={connected} loading={loading} error={error} isDemo={isDemo} />
       <HoloSidebar activeCluster={activeClusterId} selectedFile={selectedFile} clusters={clusters} clusterStats={clusterStats} />

@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
 
 const PHASES = { LANDING: 0, UPLOAD: 1, GENERATING: 2, COMPLETE: 3 }
 
@@ -191,16 +191,24 @@ function useSoundEffects() {
 
 function ParticleCanvas({ phase, generationProgress }) {
   const canvasRef = useRef(null)
+  const stateRef = useRef({
+    phase: PHASES.LANDING, particles: null, genParticles: null,
+    clusterCenters: null, genPhase: 0, time: 0, initialized: false,
+  })
+  const progressRef = useRef(0)
+
+  progressRef.current = generationProgress
+
+  useEffect(() => {
+    stateRef.current.phase = phase
+  }, [phase])
 
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
     const ctx = canvas.getContext('2d')
     let animId
-    let particles = []
-    let mouseX = 0
-    let mouseY = 0
-    let time = 0
+    const s = stateRef.current
 
     function resize() {
       canvas.width = window.innerWidth
@@ -209,11 +217,14 @@ function ParticleCanvas({ phase, generationProgress }) {
     resize()
     window.addEventListener('resize', resize)
 
-    if (phase < PHASES.GENERATING) {
-      for (let i = 0; i < PARTICLE_COUNT; i++) {
+    if (!s.initialized) {
+      s.initialized = true
+      const pcount = PARTICLE_COUNT
+      const particles = new Array(pcount)
+      for (let i = 0; i < pcount; i++) {
         const angle = Math.random() * Math.PI * 2
         const radius = Math.random() * 20 + 5
-        particles.push({
+        particles[i] = {
           x: canvas.width / 2 + Math.cos(angle) * radius,
           y: canvas.height / 2 + Math.sin(angle) * radius,
           baseX: canvas.width / 2 + Math.cos(angle) * radius,
@@ -222,44 +233,35 @@ function ParticleCanvas({ phase, generationProgress }) {
           vy: (Math.random() - 0.5) * 0.15,
           size: Math.random() * 2 + 0.5,
           opacity: Math.random() * 0.4 + 0.1,
-          phase: Math.random() * Math.PI * 2,
+          ph: Math.random() * Math.PI * 2,
           speed: Math.random() * 0.2 + 0.05,
           hue: 240 + Math.random() * 60,
-        })
+        }
       }
+      s.particles = particles
     }
 
-    let generationParticles = []
-    let connections = []
-    let clusterCenters = []
-    let genPhase = 0
-
-    canvas.addEventListener('mousemove', (e) => {
-      mouseX = e.clientX
-      mouseY = e.clientY
-    })
-
-    function generateClusterCenters(count) {
-      const centers = []
-      for (let i = 0; i < count; i++) {
-        const angle = (i / count) * Math.PI * 2 + 0.2
-        const t = count > 1 ? i / (count - 1) : 0.5
-        const radius = Math.min(canvas.width, canvas.height) * (0.15 + t * 0.2)
-        centers.push({
-          x: canvas.width / 2 + Math.cos(angle) * radius,
-          y: canvas.height / 2 + Math.sin(angle) * radius,
+    function ensureGenerationParticles() {
+      if (s.genParticles) return
+      const ccCount = 12
+      const centers = new Array(ccCount)
+      for (let i = 0; i < ccCount; i++) {
+        const a = (i / ccCount) * Math.PI * 2 + 0.2
+        const t = ccCount > 1 ? i / (ccCount - 1) : 0.5
+        const r = Math.min(canvas.width, canvas.height) * (0.15 + t * 0.2)
+        centers[i] = {
+          x: canvas.width / 2 + Math.cos(a) * r,
+          y: canvas.height / 2 + Math.sin(a) * r,
           size: 4 + Math.random() * 3,
           pulsePhase: Math.random() * Math.PI * 2,
-        })
+        }
       }
-      return centers
-    }
-
-    function initGenerationParticles(count, cc) {
-      const ps = []
-      for (let i = 0; i < count; i++) {
-        const target = cc[i % cc.length]
-        ps.push({
+      s.clusterCenters = centers
+      const total = 400
+      const ps = new Array(total)
+      for (let i = 0; i < total; i++) {
+        const target = centers[i % ccCount]
+        ps[i] = {
           x: (Math.random() - 0.5) * canvas.width * 1.5,
           y: (Math.random() - 0.5) * canvas.height * 1.5,
           targetX: target.x + (Math.random() - 0.5) * 60,
@@ -269,39 +271,43 @@ function ParticleCanvas({ phase, generationProgress }) {
           hue: 240 + Math.random() * 60,
           speed: 0.008 + Math.random() * 0.015,
           offset: Math.random() * Math.PI * 2,
-        })
+        }
       }
-      return ps
+      s.genParticles = ps
+      s.genPhase = 0
     }
 
     function drawLanding() {
       ctx.fillStyle = 'rgba(0,0,2,0.15)'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-      time += 0.003
-      for (const p of particles) {
-        p.x += p.vx + Math.sin(time * p.speed + p.phase) * 0.08
-        p.y += p.vy + Math.cos(time * p.speed * 0.7 + p.phase) * 0.08
-        const dx = p.x - p.baseX
-        const dy = p.y - p.baseY
-        const pull = 0.001
-        p.x -= dx * pull
-        p.y -= dy * pull
-        const fade = 0.5 + 0.5 * Math.sin(time * 0.5 + p.phase)
+      s.time += 0.003
+      const p = s.particles
+      if (!p) return
+      const t = s.time
+      for (let i = 0; i < p.length; i++) {
+        const pt = p[i]
+        pt.x += pt.vx + Math.sin(t * pt.speed + pt.ph) * 0.08
+        pt.y += pt.vy + Math.cos(t * pt.speed * 0.7 + pt.ph) * 0.08
+        const dx = pt.x - pt.baseX
+        const dy = pt.y - pt.baseY
+        pt.x -= dx * 0.001
+        pt.y -= dy * 0.001
+        const fade = 0.5 + 0.5 * Math.sin(t * 0.5 + pt.ph)
         ctx.beginPath()
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
-        ctx.fillStyle = `hsla(${p.hue}, 60%, 50%, ${p.opacity * fade})`
+        ctx.arc(pt.x, pt.y, pt.size, 0, Math.PI * 2)
+        ctx.fillStyle = `hsla(${pt.hue}, 60%, 50%, ${pt.opacity * fade})`
         ctx.fill()
       }
-      for (let i = 0; i < particles.length; i++) {
-        for (let j = i + 1; j < particles.length; j++) {
-          const dx = particles[i].x - particles[j].x
-          const dy = particles[i].y - particles[j].y
-          const dist = Math.sqrt(dx * dx + dy * dy)
-          if (dist < 80) {
+      for (let i = 0; i < p.length; i++) {
+        for (let j = i + 1; j < p.length; j += 5) {
+          const dx = p[i].x - p[j].x
+          const dy = p[i].y - p[j].y
+          const dist = dx * dx + dy * dy
+          if (dist < 6400) {
             ctx.beginPath()
-            ctx.moveTo(particles[i].x, particles[i].y)
-            ctx.lineTo(particles[j].x, particles[j].y)
-            ctx.strokeStyle = `hsla(260, 50%, 50%, ${0.04 * (1 - dist / 80)})`
+            ctx.moveTo(p[i].x, p[i].y)
+            ctx.lineTo(p[j].x, p[j].y)
+            ctx.strokeStyle = `hsla(260, 50%, 50%, ${0.04 * (1 - Math.sqrt(dist) / 80)})`
             ctx.lineWidth = 0.5
             ctx.stroke()
           }
@@ -312,51 +318,49 @@ function ParticleCanvas({ phase, generationProgress }) {
     function drawGenerating() {
       ctx.fillStyle = 'rgba(0,0,2,0.12)'
       ctx.fillRect(0, 0, canvas.width, canvas.height)
-      time += 0.005
-
-      if (genPhase < 1) genPhase = Math.min(1, genPhase + 0.004)
-
-      const progress = genPhase
-
-      for (const p of generationParticles) {
+      s.time += 0.005
+      if (s.genPhase < 1) s.genPhase = Math.min(1, s.genPhase + 0.004)
+      const progress = s.genPhase
+      const ps = s.genParticles || []
+      const cc = s.clusterCenters || []
+      for (let i = 0; i < ps.length; i++) {
+        const p = ps[i]
         const ease = 1 - Math.pow(1 - progress * p.speed * 12, 3)
         p.x += (p.targetX - p.x) * ease * 0.04
         p.y += (p.targetY - p.y) * ease * 0.04
-        p.opacity = Math.min(0.8, progress * 2 - 0.2 + Math.sin(time + p.offset) * 0.15)
+        p.opacity = Math.min(0.8, progress * 2 - 0.2 + Math.sin(s.time + p.offset) * 0.15)
         ctx.beginPath()
         ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2)
         ctx.fillStyle = `hsla(${p.hue}, 60%, 60%, ${Math.max(0, p.opacity)})`
         ctx.fill()
       }
-
       if (progress > 0.4) {
-        for (let i = 0; i < clusterCenters.length; i++) {
-          for (let j = i + 1; j < clusterCenters.length; j++) {
+        for (let i = 0; i < cc.length; i++) {
+          for (let j = i + 1; j < cc.length; j++) {
             ctx.beginPath()
-            ctx.moveTo(clusterCenters[i].x, clusterCenters[i].y)
-            ctx.lineTo(clusterCenters[j].x, clusterCenters[j].y)
-            const alpha = (progress - 0.4) * 0.5 * (0.5 + 0.5 * Math.sin(time * 2 + i + j))
+            ctx.moveTo(cc[i].x, cc[i].y)
+            ctx.lineTo(cc[j].x, cc[j].y)
+            const alpha = (progress - 0.4) * 0.5 * (0.5 + 0.5 * Math.sin(s.time * 2 + i + j))
             ctx.strokeStyle = `hsla(260, 40%, 50%, ${Math.min(0.15, alpha)})`
             ctx.lineWidth = 0.5
             ctx.stroke()
           }
         }
       }
-
       if (progress > 0.5) {
-        for (const cc of clusterCenters) {
-          const pulse = 0.6 + 0.4 * Math.sin(time * 3 + cc.pulsePhase)
-          const r = cc.size * 2.5 * pulse
-          const grad = ctx.createRadialGradient(cc.x, cc.y, 0, cc.x, cc.y, r)
+        for (let i = 0; i < cc.length; i++) {
+          const c = cc[i]
+          const pulse = 0.6 + 0.4 * Math.sin(s.time * 3 + c.pulsePhase)
+          const r = c.size * 2.5 * pulse
+          const grad = ctx.createRadialGradient(c.x, c.y, 0, c.x, c.y, r)
           grad.addColorStop(0, `hsla(260, 80%, 60%, ${0.15 * (progress - 0.5) * 2})`)
           grad.addColorStop(1, 'hsla(260, 80%, 60%, 0)')
           ctx.beginPath()
-          ctx.arc(cc.x, cc.y, r, 0, Math.PI * 2)
+          ctx.arc(c.x, c.y, r, 0, Math.PI * 2)
           ctx.fillStyle = grad
           ctx.fill()
-
           ctx.beginPath()
-          ctx.arc(cc.x, cc.y, cc.size * 0.6, 0, Math.PI * 2)
+          ctx.arc(c.x, c.y, c.size * 0.6, 0, Math.PI * 2)
           ctx.fillStyle = `hsla(260, 70%, 70%, ${0.3 * (progress - 0.5) * 2})`
           ctx.fill()
         }
@@ -364,15 +368,11 @@ function ParticleCanvas({ phase, generationProgress }) {
     }
 
     function animate() {
-      if (phase === PHASES.LANDING || phase === PHASES.UPLOAD) {
+      const curPhase = stateRef.current.phase
+      if (curPhase === PHASES.LANDING || curPhase === PHASES.UPLOAD) {
         drawLanding()
-      } else if (phase === PHASES.GENERATING) {
-        if (generationParticles.length === 0) {
-          const ccCount = generationProgress > 0 ? Math.min(12, Math.ceil(generationProgress * 12)) : 12
-          clusterCenters = generateClusterCenters(ccCount)
-          generationParticles = initGenerationParticles(400, clusterCenters)
-          genPhase = 0
-        }
+      } else if (curPhase === PHASES.GENERATING || curPhase === PHASES.COMPLETE) {
+        if (!s.genParticles) ensureGenerationParticles()
         drawGenerating()
       }
       animId = requestAnimationFrame(animate)
@@ -384,7 +384,7 @@ function ParticleCanvas({ phase, generationProgress }) {
       cancelAnimationFrame(animId)
       window.removeEventListener('resize', resize)
     }
-  }, [phase, generationProgress])
+  }, [])
 
   return (
     <canvas
@@ -523,39 +523,38 @@ function UploadPhase({ files, onFilesChange, onGenerate }) {
     onFilesChange(arr)
   }
 
-  function handleDrop(e) {
+  async function handleDrop(e) {
     e.preventDefault()
     setDragOver(false)
-    if (e.dataTransfer.items) {
-      const fileList = []
+    const files = e.dataTransfer.files
+    if (files && files.length > 0) {
+      handleFileList(files)
+    } else if (e.dataTransfer.items) {
+      const entries = []
       for (const item of e.dataTransfer.items) {
-        if (item.webkitGetAsEntry) {
-          const entry = item.webkitGetAsEntry()
-          if (entry) {
-            traverseEntry(entry, fileList)
-          }
-        } else if (item.getAsFile) {
-          const f = item.getAsFile()
-          if (f) fileList.push(f)
-        }
+        if (item.webkitGetAsEntry) entries.push(item.webkitGetAsEntry())
       }
-      if (fileList.length > 0) {
-        onFilesChange(fileList)
+      if (entries.length > 0) {
+        const collected = await traverseEntries(entries)
+        if (collected.length > 0) onFilesChange(collected)
       }
-    } else if (e.dataTransfer.files) {
-      handleFileList(e.dataTransfer.files)
     }
   }
 
-  function traverseEntry(entry, files) {
-    if (entry.isFile) {
-      entry.file((f) => files.push(f))
-    } else if (entry.isDirectory) {
-      const reader = entry.createReader()
-      reader.readEntries((entries) => {
-        for (const e of entries) traverseEntry(e, files)
-      })
+  async function traverseEntries(entries) {
+    const result = []
+    async function walk(entry) {
+      if (entry.isFile) {
+        const f = await new Promise((resolve) => entry.file(resolve))
+        result.push(f)
+      } else if (entry.isDirectory) {
+        const reader = entry.createReader()
+        const kids = await new Promise((resolve) => reader.readEntries(resolve))
+        for (const kid of kids) await walk(kid)
+      }
     }
+    for (const e of entries) await walk(e)
+    return result
   }
 
   function handleChange(e) {
@@ -644,7 +643,7 @@ function UploadPhase({ files, onFilesChange, onGenerate }) {
           ref={inputRef}
           type="file"
           webkitdirectory="true"
-          multiple="true"
+          multiple
           onChange={handleChange}
           style={{ display: 'none' }}
         />
@@ -803,6 +802,7 @@ export default function InitFlow({ onComplete }) {
   const [files, setFiles] = useState([])
   const [genProgress, setGenProgress] = useState(0)
   const [fadeOut, setFadeOut] = useState(false)
+  const completedRef = useRef(false)
   const { playUploadTone, playGenerationRise, playCompletionSwirl } = useSoundEffects()
 
   useEffect(() => {
@@ -828,7 +828,8 @@ export default function InitFlow({ onComplete }) {
   }, [phase, playGenerationRise, playCompletionSwirl])
 
   useEffect(() => {
-    if (phase === PHASES.COMPLETE) {
+    if (phase === PHASES.COMPLETE && !completedRef.current) {
+      completedRef.current = true
       setFadeOut(true)
       const { clusterMap, clusterFiles } = organizeFilesIntoClusters(files)
       setTimeout(() => {
