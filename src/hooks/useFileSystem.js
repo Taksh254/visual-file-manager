@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { generateDemoClusters, generateDemoClusterFiles } from '../data/demoClusters'
 
 const SERVER = 'http://localhost:3000'
 const WS_URL = 'ws://localhost:3000'
@@ -11,6 +12,7 @@ export default function useFileSystem() {
   const [error, setError] = useState(null)
   const [connected, setConnected] = useState(false)
   const [clusterStats, setClusterStats] = useState(null)
+  const [isDemo, setIsDemo] = useState(false)
   const wsRef = useRef(null)
   const reconnectTimerRef = useRef(null)
   const clusterFilesRef = useRef({})
@@ -47,8 +49,15 @@ export default function useFileSystem() {
         setLoading(false)
       } catch (e) {
         if (!cancelled) {
-          setError(e.message)
+          const demo = generateDemoClusters()
+          setClusters(demo)
+          setIsDemo(true)
           setLoading(false)
+          for (const id of Object.keys(demo)) {
+            const files = generateDemoClusterFiles(Number(id))
+            clusterFilesRef.current[id] = files
+          }
+          setClusterFiles({ ...clusterFilesRef.current })
         }
       }
     }
@@ -168,6 +177,12 @@ export default function useFileSystem() {
   }, [])
 
   const fetchClusterFiles = useCallback(async (clusterId, offset = 0, limit = 2000) => {
+    if (isDemo) {
+      const files = clusterFilesRef.current[clusterId] || generateDemoClusterFiles(clusterId)
+      clusterFilesRef.current[clusterId] = files
+      setClusterFiles(prev => ({ ...prev, [clusterId]: files }))
+      return { files }
+    }
     try {
       const res = await fetch(`${SERVER}/api/clusters/${clusterId}/files?offset=${offset}&limit=${limit}`)
       if (!res.ok) throw new Error('Failed to fetch files')
@@ -179,9 +194,10 @@ export default function useFileSystem() {
       setError(e.message)
       return null
     }
-  }, [])
+  }, [isDemo])
 
   const openFile = useCallback(async (filePath) => {
+    if (isDemo) return
     try {
       await fetch(`${SERVER}/api/files/open`, {
         method: 'POST',
@@ -189,7 +205,7 @@ export default function useFileSystem() {
         body: JSON.stringify({ filePath }),
       })
     } catch {}
-  }, [])
+  }, [isDemo])
 
   const clearFileChanges = useCallback(() => {
     setFileChanges(null)
@@ -203,6 +219,7 @@ export default function useFileSystem() {
     error,
     connected,
     clusterStats,
+    isDemo,
     fetchClusterFiles,
     openFile,
     clearFileChanges,

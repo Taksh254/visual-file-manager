@@ -1,4 +1,19 @@
-export default function ConnectionStatus({ connected, loading, error }) {
+export default function ConnectionStatus({ connected, loading, error, isDemo }) {
+  if (isDemo) {
+    return (
+      <div style={{
+        position: 'fixed', top: 16, left: '50%', transform: 'translateX(-50%)',
+        zIndex: 100, padding: '6px 16px', borderRadius: 20,
+        background: 'rgba(100,60,255,0.08)', backdropFilter: 'blur(4px)',
+        border: '1px solid rgba(100,60,255,0.12)',
+        fontSize: 11, fontFamily: "'SF Mono','Menlo',monospace",
+        color: 'rgba(180,150,255,0.35)', letterSpacing: '1px',
+        pointerEvents: 'none',
+      }}>
+        ◇ ORYN — DEMO
+      </div>
+    )
+  }
   if (loading) {
     return (
       <div style={{

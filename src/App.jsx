@@ -25,6 +25,7 @@ export default function App() {
     error,
     connected,
     clusterStats,
+    isDemo,
     activeClusterId,
     activeCluster,
     navState,
@@ -95,7 +96,7 @@ export default function App() {
         <MinimapCameraSync />
       </Canvas>
 
-      <ConnectionStatus connected={connected} loading={loading} error={error} />
+      <ConnectionStatus connected={connected} loading={loading} error={error} isDemo={isDemo} />
       <HoloSidebar activeCluster={activeClusterId} selectedFile={selectedFile} clusters={clusters} clusterStats={clusterStats} />
       <RightPanel selectedFile={selectedFile} clusterNames={clusterNames} openFile={openFile} />
       <BottomNav activeCluster={activeClusterId} onReturn={exitToUniverse} />
