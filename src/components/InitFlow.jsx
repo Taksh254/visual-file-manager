@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 
 const PHASES = { LANDING: 0, UPLOAD: 1, GENERATING: 2, COMPLETE: 3 }
 
