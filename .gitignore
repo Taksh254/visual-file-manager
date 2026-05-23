@@ -3,3 +3,4 @@ node_modules/
 dist/
 ezgif-4b22ee7495e594f9-jpg/
 *.mp3
+!/public/audio/*.mp3

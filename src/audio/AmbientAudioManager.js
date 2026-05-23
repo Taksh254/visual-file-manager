@@ -18,7 +18,7 @@ class AmbientAudioManager {
   init() {
     if (this.audio) return this
 
-    this.audio = new Audio('/audio/edith-theme.mp3')
+    this.audio = new Audio('/audio/oryn-theme.mp3')
     this.audio.loop = true
     this.audio.volume = 0
     this.audio.preload = 'auto'

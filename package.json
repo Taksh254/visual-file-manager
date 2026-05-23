@@ -15,7 +15,6 @@
     "@react-three/fiber": "^9.6.1",
     "@react-three/postprocessing": "^3.0.4",
     "bidi-js": "^1.0.3",
-    "howler": "^2.2.4",
     "postprocessing": "^6.39.1",
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
