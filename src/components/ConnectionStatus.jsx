@@ -1,4 +1,11 @@
-export default function ConnectionStatus({ connected, loading, error, isDemo }) {
+import useUniverseStore from '../store/useUniverseStore'
+
+export default function ConnectionStatus() {
+  const connected = useUniverseStore(s => s.connected)
+  const loading = useUniverseStore(s => s.loading)
+  const error = useUniverseStore(s => s.error)
+  const isDemo = useUniverseStore(s => s.isDemo)
+
   if (isDemo) {
     return (
       <div style={{

@@ -141,6 +141,7 @@ export default function ClusterView({ cluster, clusterParticles, onReturn, onFil
         meta={files.meta}
         positions={files.positions}
         colors={files.colors}
+        sizes={files.sizes}
         hoveredIndex={hoveredIndex}
         selectedIndex={selectedIndex}
         onHover={handleHover}

@@ -82,7 +82,7 @@ const fragmentShader = `
   }
 `
 
-export default function FileParticleSystem({ meta, positions, colors, hoveredIndex, selectedIndex, onHover, onSelect, expandProgress = 1, changeType = null, version = 0 }) {
+export default function FileParticleSystem({ meta, positions, colors, sizes: externalSizes = null, hoveredIndex, selectedIndex, onHover, onSelect, expandProgress = 1, changeType = null, version = 0 }) {
   const radius = 2.4
   const points = useRef()
   const count = meta.length
@@ -103,6 +103,22 @@ export default function FileParticleSystem({ meta, positions, colors, hoveredInd
   }, [version, changeType])
 
   const { sizes, phases, layers, orbitTilts, orbitEccs, isNewFlags } = useMemo(() => {
+    if (externalSizes && externalSizes.length === count) {
+      const sizes = new Float32Array(externalSizes)
+      const phases = new Float32Array(count)
+      const layers = new Float32Array(count)
+      const orbitTilts = new Float32Array(count)
+      const orbitEccs = new Float32Array(count)
+      const isNewFlags = new Float32Array(count)
+      for (let i = 0; i < count; i++) {
+        phases[i] = Math.random() * Math.PI * 2
+        layers[i] = Math.random()
+        orbitTilts[i] = Math.random() * Math.PI * 2
+        orbitEccs[i] = Math.random()
+        isNewFlags[i] = (meta[i]?.isNew) ? 1.0 : 0.0
+      }
+      return { sizes, phases, layers, orbitTilts, orbitEccs, isNewFlags }
+    }
     const sizes = new Float32Array(count)
     const phases = new Float32Array(count)
     const layers = new Float32Array(count)
@@ -119,7 +135,7 @@ export default function FileParticleSystem({ meta, positions, colors, hoveredInd
       isNewFlags[i] = (meta[i]?.isNew) ? 1.0 : 0.0
     }
     return { sizes, phases, layers, orbitTilts, orbitEccs, isNewFlags }
-  }, [count, meta])
+  }, [count, meta, externalSizes])
 
   const uniforms = useMemo(() => ({
     uTime: { value: 0 },

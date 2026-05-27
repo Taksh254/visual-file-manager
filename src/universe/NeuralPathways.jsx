@@ -311,46 +311,57 @@ function ConnectionStream({ curve, color, rng, startPos, endPos }) {
   )
 }
 
+const MEANINGFUL_PATHS = [
+  ['IMAGES', 'VIDEOS'],
+  ['IMAGES', 'DOCUMENTS'],
+  ['VIDEOS', 'AUDIO'],
+  ['DOCUMENTS', 'CODE'],
+  ['DOCUMENTS', 'ARCHIVES'],
+  ['CODE', 'OTHER'],
+  ['AUDIO', 'OTHER'],
+  ['ARCHIVES', 'OTHER'],
+]
+
 export default function NeuralPathways({ clusters }) {
   if (!clusters) return null
 
   const conns = useMemo(() => {
     const keys = Object.keys(clusters)
     if (keys.length < 2) return []
-    const vals = keys.map(k => clusters[k])
-    const arr = []
-    const centerPos = new THREE.Vector3(0, 0, 0)
-
-    for (let i = 0; i < keys.length; i++) {
-      const j = (i + 1) % keys.length
-      const colA = vals[i].color; const colB = vals[j].color
-      const color = new THREE.Color((colA.r + colB.r) / 2, (colA.g + colB.g) / 2, (colA.b + colB.b) / 2).multiplyScalar(1.6)
-      const p1 = new THREE.Vector3(vals[i].position[0], vals[i].position[1], vals[i].position[2])
-      const p2 = new THREE.Vector3(vals[j].position[0], vals[j].position[1], vals[j].position[2])
-      arr.push({ curve: buildCurve(p1, p2, i * 100), color, rng: seeded(i * 100 + 50), key: `ring-${i}`, startPos: p1, endPos: p2 })
+    const byCategory = {}
+    for (const k of keys) {
+      const c = clusters[k]
+      byCategory[c.category] = c
     }
 
-    for (let i = 0; i < keys.length; i++) {
-      const col = vals[i].color
-      const color = new THREE.Color(col.r, col.g, col.b).multiplyScalar(1.8)
-      const p = new THREE.Vector3(vals[i].position[0], vals[i].position[1], vals[i].position[2])
-      arr.push({ curve: buildCurve(centerPos, p, i * 100 + 200), color, rng: seeded(i * 100 + 250), key: `hub-${i}`, startPos: centerPos, endPos: p })
+    const arr = []
+    const used = new Set()
 
-      const outDir = p.clone().normalize()
-      const extOut = p.clone().add(outDir.clone().multiplyScalar(0.6 + seeded(i * 100 + 300)() * 0.8))
-      arr.push({ curve: buildCurve(p, extOut, i * 100 + 400), color: color.clone().multiplyScalar(0.5), rng: seeded(i * 100 + 450), key: `ext-${i}`, startPos: p, endPos: extOut })
+    for (const [catA, catB] of MEANINGFUL_PATHS) {
+      const a = byCategory[catA]
+      const b = byCategory[catB]
+      if (!a || !b) continue
+      const key = [catA, catB].sort().join('-')
+      if (used.has(key)) continue
+      used.add(key)
+
+      const colA = a.color; const colB = b.color
+      const color = new THREE.Color((colA.r + colB.r) / 2, (colA.g + colB.g) / 2, (colA.b + colB.b) / 2).multiplyScalar(1.6)
+      const p1 = new THREE.Vector3(a.position[0], a.position[1], a.position[2])
+      const p2 = new THREE.Vector3(b.position[0], b.position[1], b.position[2])
+      const seed = catA.charCodeAt(0) * 100 + catB.charCodeAt(0)
+      arr.push({ curve: buildCurve(p1, p2, seed), color, rng: seeded(seed + 50), key, startPos: p1, endPos: p2 })
     }
 
     return arr
   }, [clusters])
 
+  if (conns.length === 0) return null
+
   return (
     <group>
       {conns.map(c => (
         <ConnectionStream key={c.key} curve={c.curve} color={c.color} rng={c.rng} startPos={c.startPos} endPos={c.endPos} />
-      ))}
-      {conns.filter(c => c.key.startsWith('hub-')).map(c => (
-        <NodeGlow key={`node-${c.key}`} position={c.endPos} color={c.color} />
       ))}
     </group>
   )

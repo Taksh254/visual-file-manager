@@ -1,4 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
+import PreviewPanel from './PreviewPanel'
+import useUniverseStore from '../store/useUniverseStore'
 
 const style = {
   panel: {
@@ -15,21 +17,45 @@ const style = {
     fontSize: 7,
     letterSpacing: '2px',
     color: 'rgba(120,80,255,0.4)',
-      textTransform: 'uppercase',
+    textTransform: 'uppercase',
     marginBottom: 8,
     fontFamily: "'SF Mono','Menlo',monospace",
   },
-  value: {
-    fontSize: 11,
-    color: 'rgba(255,255,255,0.55)',
-    fontFamily: "'SF Mono','Menlo',monospace",
-    letterSpacing: '0.5px',
-  },
 }
 
-export default function RightPanel({ selectedFile, clusterNames, openFile }) {
+export default function RightPanel() {
+  const selectedFile = useUniverseStore(s => s.selectedFile)
+  const clusterNames = useUniverseStore(s => s.clusterNames)
+  const activeClusterId = useUniverseStore(s => s.activeClusterId)
+  const renameFile = useUniverseStore(s => s.renameFile)
+
   const [time, setTime] = useState(new Date().toLocaleTimeString())
+  const [editingName, setEditingName] = useState(false)
+  const [editValue, setEditValue] = useState('')
+  const inputRef = useRef(null)
   useEffect(() => { const id = setInterval(() => setTime(new Date().toLocaleTimeString()), 1000); return () => clearInterval(id) }, [])
+
+  useEffect(() => {
+    if (editingName) inputRef.current?.focus()
+  }, [editingName])
+
+  function handleStartEdit() {
+    if (!selectedFile) return
+    setEditValue(selectedFile.name)
+    setEditingName(true)
+  }
+
+  function handleConfirmEdit() {
+    if (editValue.trim() && selectedFile && activeClusterId !== null) {
+      renameFile(activeClusterId, selectedFile.path, editValue.trim())
+    }
+    setEditingName(false)
+  }
+
+  function handleKeyDown(e) {
+    if (e.key === 'Enter') handleConfirmEdit()
+    if (e.key === 'Escape') setEditingName(false)
+  }
 
   return (
     <div style={{
@@ -56,29 +82,46 @@ export default function RightPanel({ selectedFile, clusterNames, openFile }) {
       {selectedFile && (
         <div style={style.panel}>
           <div style={style.label}>Selected File</div>
-          <div style={{ fontSize: 11, color: '#fff', marginBottom: 2, wordBreak: 'break-all', fontWeight: 300 }}>
-            {selectedFile.name}
-          </div>
+          {editingName ? (
+            <input
+              ref={inputRef}
+              value={editValue}
+              onChange={e => setEditValue(e.target.value)}
+              onKeyDown={handleKeyDown}
+              onBlur={handleConfirmEdit}
+              style={{
+                background: 'rgba(120,80,255,0.08)',
+                border: '1px solid rgba(120,80,255,0.3)',
+                borderRadius: 3, padding: '2px 6px',
+                color: '#fff', fontSize: 11,
+                fontFamily: "'SF Mono','Menlo',monospace",
+                outline: 'none', width: '100%', boxSizing: 'border-box',
+                marginBottom: 4,
+              }}
+            />
+          ) : (
+            <div
+              onClick={(e) => { e.stopPropagation(); handleStartEdit() }}
+              style={{
+                fontSize: 11, color: '#fff', marginBottom: 2, wordBreak: 'break-all',
+                fontWeight: 300, cursor: 'pointer', transition: 'color 0.15s',
+              }}
+              onMouseEnter={e => e.target.style.color = 'rgba(180,150,255,0.8)'}
+              onMouseLeave={e => e.target.style.color = '#fff'}
+              title="Click to rename"
+            >
+              ✎ {selectedFile.name}
+            </div>
+          )}
           <div style={{ fontSize: 9, color: 'rgba(255,255,255,0.3)', marginBottom: 2 }}>
             {selectedFile.size}
           </div>
           <div style={{ fontSize: 8, color: 'rgba(255,255,255,0.12)', marginBottom: 6, wordBreak: 'break-all' }}>
             {selectedFile.path}
           </div>
-          {openFile && selectedFile.path && (
-            <div
-              onClick={(e) => { e.stopPropagation(); openFile(selectedFile.path) }}
-              style={{
-                fontSize: 9, color: 'rgba(120,80,255,0.5)', cursor: 'pointer',
-                letterSpacing: '0.5px', transition: 'color 0.15s',
-                pointerEvents: 'auto', marginTop: 4,
-              }}
-              onMouseEnter={e => e.target.style.color = 'rgba(120,80,255,0.9)'}
-              onMouseLeave={e => e.target.style.color = 'rgba(120,80,255,0.5)'}
-            >
-              ⟳ Open File
-            </div>
-          )}
+          <div style={{ pointerEvents: 'auto' }}>
+            <PreviewPanel selectedFile={selectedFile} />
+          </div>
         </div>
       )}
 

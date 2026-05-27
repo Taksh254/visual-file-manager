@@ -1,6 +1,7 @@
 import { useEffect, useRef, useCallback } from 'react'
 import * as THREE from 'three'
 import { minimapSync } from '../systems/MinimapSync'
+import useUniverseStore from '../store/useUniverseStore'
 
 const SIZE = 200
 const WORLD_BOUNDS = 7
@@ -210,7 +211,11 @@ function createCameraDot() {
   return group
 }
 
-export default function NeuralMinimap({ clusters, activeCluster, onSelect }) {
+export default function NeuralMinimap() {
+  const clusters = useUniverseStore(s => s.clusters)
+  const activeClusterId = useUniverseStore(s => s.activeClusterId)
+  const enterCluster = useUniverseStore(s => s.enterCluster)
+
   const containerRef = useRef()
   const canvasRef = useRef()
   const initialized = useRef(false)
@@ -249,10 +254,8 @@ export default function NeuralMinimap({ clusters, activeCluster, onSelect }) {
   const worldBoundsRef = useRef({ minX: -WORLD_BOUNDS, maxX: WORLD_BOUNDS, minZ: -WORLD_BOUNDS, maxZ: WORLD_BOUNDS })
 
   const selectCluster = useCallback((id) => {
-    if (onSelect && id !== undefined && id !== null) {
-      onSelect(id)
-    }
-  }, [onSelect])
+    if (id !== undefined && id !== null) enterCluster(id)
+  }, [enterCluster])
 
   const handleClick = useCallback((e) => {
     if (!canvasRef.current || !sceneRef.current || !cameraRef.current) return
@@ -456,13 +459,13 @@ export default function NeuralMinimap({ clusters, activeCluster, onSelect }) {
   useEffect(() => {
     if (!activeRingRef.current) return
     const smooth = smoothRef.current
-    if (activeCluster !== null) {
+    if (activeClusterId !== null) {
       smooth.activeOpacity = 1
-      smooth.activeCluster = activeCluster
+      smooth.activeCluster = activeClusterId
     } else {
       smooth.activeOpacity = 0
     }
-  }, [activeCluster])
+  }, [activeClusterId])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -535,7 +538,7 @@ export default function NeuralMinimap({ clusters, activeCluster, onSelect }) {
       } else {
         smooth.activeOpacity = 0
       }
-      if (activeCluster === null) {
+      if (activeClusterId === null) {
         smooth.activeOpacity *= 0.92
       }
 
@@ -614,7 +617,7 @@ export default function NeuralMinimap({ clusters, activeCluster, onSelect }) {
       running = false
       cancelAnimationFrame(animFrame.current)
     }
-  }, [activeCluster])
+  }, [activeClusterId])
 
   return (
     <div

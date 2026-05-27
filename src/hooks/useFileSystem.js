@@ -214,10 +214,26 @@ export default function useFileSystem() {
   const setCustomClusters = useCallback((customClusters, customClusterFiles) => {
     setClusters(customClusters)
     setClusterFiles(customClusterFiles || {})
+    clusterFilesRef.current = customClusterFiles || {}
     setIsDemo(false)
     setLoading(false)
     setError(null)
     setConnected(true)
+  }, [])
+
+  const renameFile = useCallback((clusterId, filePath, newName) => {
+    setClusterFiles(prev => {
+      const cluster = prev[clusterId]
+      if (!cluster) return prev
+      const updated = cluster.map(f => {
+        if (f.path === filePath) {
+          return { ...f, name: newName }
+        }
+        return f
+      })
+      clusterFilesRef.current[clusterId] = updated
+      return { ...prev, [clusterId]: updated }
+    })
   }, [])
 
   return {
@@ -233,5 +249,6 @@ export default function useFileSystem() {
     openFile,
     clearFileChanges,
     setCustomClusters,
+    renameFile,
   }
 }

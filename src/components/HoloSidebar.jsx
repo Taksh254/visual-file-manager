@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import useUniverseStore from '../store/useUniverseStore'
 
 const row = (label, val) => (
   <div style={{
@@ -10,7 +11,12 @@ const row = (label, val) => (
   </div>
 )
 
-export default function HoloSidebar({ activeCluster, selectedFile, clusters, clusterStats }) {
+export default function HoloSidebar() {
+  const activeClusterId = useUniverseStore(s => s.activeClusterId)
+  const selectedFile = useUniverseStore(s => s.selectedFile)
+  const clusters = useUniverseStore(s => s.clusters)
+  const clusterStats = useUniverseStore(s => s.clusterStats)
+
   const [time, setTime] = useState(new Date().toLocaleTimeString())
   useEffect(()=>{const i=setInterval(()=>setTime(new Date().toLocaleTimeString()),1000); return ()=>clearInterval(i)},[])
 
@@ -46,7 +52,7 @@ export default function HoloSidebar({ activeCluster, selectedFile, clusters, clu
             </div>
             {clusters && Object.values(clusters).map(c=>{
               const hex=`rgb(${c.color.r*255|0},${c.color.g*255|0},${c.color.b*255|0})`
-              const isActive = activeCluster === c.id
+              const isActive = activeClusterId === c.id
               return (
                 <div key={c.id} style={{
                   display:'flex',alignItems:'center',padding:'5px 0',

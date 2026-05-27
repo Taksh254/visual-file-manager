@@ -1,12 +1,14 @@
 import { Html } from '@react-three/drei'
 
-const ICON = { pdf: '📄', image: '🖼', video: '🎬', audio: '🎵', code: '⌨', archive: '📦', folder: '📁' }
-const COLOR = { pdf: '#FF8C00', image: '#9B59B6', video: '#E74C3C', audio: '#E891D0', code: '#00BCD4', archive: '#F2D94E', folder: '#FFFFFF' }
+const ICON = { pdf: '📄', doc: '📄', image: '🖼', video: '🎬', audio: '🎵', code: '⌨', text: '⌨', archive: '📦', folder: '📁', other: '✦', unknown: '✦' }
+const COLOR = { pdf: '#FF8C00', doc: '#FF8C00', image: '#9B59B6', video: '#E74C3C', audio: '#E891D0', code: '#00BCD4', text: '#00BCD4', archive: '#F2D94E', folder: '#FFFFFF', other: '#999', unknown: '#666' }
 
 export default function HoverLabel({ file, position }) {
   if (!file || !position) return null
 
   const c = COLOR[file.type] || '#00BCD4'
+
+  const icon = file.clusterIcon || ICON[file.type] || '✦'
 
   return (
     <Html position={[position.x, position.y + 0.2, position.z]} center distanceFactor={4}>
@@ -25,7 +27,7 @@ export default function HoverLabel({ file, position }) {
         boxShadow: `0 0 20px ${c}22, 0 0 60px ${c}11`,
         letterSpacing: '0.3px',
       }}>
-        <span style={{ marginRight: 5 }}>{ICON[file.type] || '📄'}</span>
+        <span style={{ marginRight: 5 }}>{icon}</span>
         <span style={{ color: c }}>{file.name}</span>
         <span style={{ color: 'rgba(255,255,255,0.3)', marginLeft: 8, fontSize: 9 }}>{file.size}</span>
       </div>

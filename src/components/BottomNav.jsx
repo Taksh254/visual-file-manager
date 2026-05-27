@@ -1,4 +1,9 @@
-export default function BottomNav({ activeCluster, onReturn }) {
+import useUniverseStore from '../store/useUniverseStore'
+
+export default function BottomNav() {
+  const activeClusterId = useUniverseStore(s => s.activeClusterId)
+  const exitToUniverse = useUniverseStore(s => s.exitToUniverse)
+
   return (
     <div style={{
       position: 'fixed', bottom: 28, left: '50%', transform: 'translateX(-50%)',
@@ -11,23 +16,23 @@ export default function BottomNav({ activeCluster, onReturn }) {
       fontFamily: "'SF Mono','Menlo',monospace", gap: 2,
     }}>
       <div
-        onClick={activeCluster !== null ? onReturn : undefined}
+        onClick={activeClusterId !== null ? exitToUniverse : undefined}
         style={{
           display: 'flex', alignItems: 'center', gap: 6,
           padding: '5px 14px', borderRadius: 25,
-          cursor: activeCluster !== null ? 'pointer' : 'default',
-          color: activeCluster !== null ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.25)',
+          cursor: activeClusterId !== null ? 'pointer' : 'default',
+          color: activeClusterId !== null ? 'rgba(255,255,255,0.6)' : 'rgba(255,255,255,0.25)',
           fontSize: 10, letterSpacing: '1.5px',
           transition: 'all 0.25s',
           border: '1px solid transparent',
         }}
-        onMouseEnter={e => { if(activeCluster !== null) { e.currentTarget.style.borderColor = 'rgba(120,80,255,0.15)'; e.currentTarget.style.background = 'rgba(120,80,255,0.06)'; }}}
-        onMouseLeave={e => { if(activeCluster !== null) { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}}
+        onMouseEnter={e => { if(activeClusterId !== null) { e.currentTarget.style.borderColor = 'rgba(120,80,255,0.15)'; e.currentTarget.style.background = 'rgba(120,80,255,0.06)'; }}}
+        onMouseLeave={e => { if(activeClusterId !== null) { e.currentTarget.style.borderColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}}
       >
         Universe
       </div>
 
-      {activeCluster !== null && (
+      {activeClusterId !== null && (
         <>
           <div style={{color:'rgba(120,80,255,0.2)', fontSize: 8}}>▸</div>
           <div style={{color:'rgba(255,255,255,0.3)', fontSize: 10, letterSpacing: '1px', padding: '5px 14px'}}>
